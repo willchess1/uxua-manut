@@ -1,72 +1,61 @@
-// src/hooks/useProfiles.js
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-export function useProfiles(filters = {}) {
+export function useProfiles(filterRole = null, filterSearch = null) {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const abortController = new AbortController(); // Cria um AbortController
-    const signal = abortController.signal; // Obtém o sinal para passar à requisição
+    let isMounted = true;
 
     async function fetchProfiles() {
       setLoading(true);
-      setError(null); // Limpa erros anteriores
+      setError(null);
+
       try {
         let query = supabase
           .from('profiles')
-          .select('*') // Seleciona todas as colunas
-          .order('nome', { ascending: true }); // Ordena por nome
+          .select('*')
+          .order('nome', { ascending: true });
 
-        // Aplica filtros se existirem
-        if (filters.role) {
-          if (Array.isArray(filters.role)) {
-            query = query.in('role', filters.role); // Filtra por múltiplos roles
+        // Aplica filtro de role
+        if (filterRole) {
+          if (Array.isArray(filterRole)) {
+            query = query.in('role', filterRole);
           } else {
-            query = query.eq('role', filters.role); // Filtra por um único role
+            query = query.eq('role', filterRole);
           }
         }
-        if (filters.search) {
-          query = query.ilike('nome', `%${filters.search}%`); // Filtra por nome (case-insensitive)
+
+        // Aplica filtro de pesquisa
+        if (filterSearch) {
+          query = query.ilike('nome', `%${filterSearch}%`);
         }
 
-        // Executa a query, passando o signal para permitir o abort
-        const { data, error } = await query.abortSignal(signal); // Supabase v2 usa .abortSignal()
+        const { data, error } = await query;
 
-        if (error) {
-          // Se o erro for um AbortError, não o trata como um erro de aplicação
-          if (error.name === 'AbortError') {
-            console.log('Fetch de perfis abortado (componente desmontado ou requisição cancelada)');
-          } else {
-            throw error; // Lança outros erros para serem capturados pelo catch
-          }
-        } else {
-          setProfiles(data || []); // Atualiza os perfis
-        }
+        if (!isMounted) return; // Componente desmontado, ignora
+
+        if (error) throw error;
+
+        setProfiles(data || []);
+
       } catch (err) {
-        // Captura e define o erro, se não for um AbortError
-        if (err.name !== 'AbortError') {
+        if (isMounted) {
           setError(err.message);
           console.error('Erro ao buscar perfis:', err);
         }
       } finally {
-        // Garante que o estado de carregamento seja definido como false
-        // a menos que a requisição tenha sido abortada e o componente já não esteja montado
-        if (!signal.aborted) { // Verifica se o sinal não foi abortado antes de definir loading como false
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     }
 
     fetchProfiles();
 
-    // Função de limpeza: aborta a requisição se o componente for desmontado
-    return () => {
-      abortController.abort();
-    };
-  }, [filters.role, filters.search]); // Dependências do useEffect
+    return () => { isMounted = false; };
+
+  }, [JSON.stringify(filterRole), filterSearch]); // ✅ Evita loop com arrays!
 
   return { profiles, loading, error };
 }
