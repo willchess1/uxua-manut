@@ -13,8 +13,8 @@ export default function VistoriaPage() {
 
   const { profile, loading: authLoading } = useAuth();
   const { casas, loading: loadingCasas } = useCasas();
-  const { profiles, loading: loadingProfiles } = useProfiles({ role: ['tecnico', 'supervisor'] });
-
+// ✅ CORRETO!
+const { profiles, loading: loadingProfiles } = useProfiles(['tecnico', 'supervisor'], null);
   const [vistoria, setVistoria] = useState(null);
   const [loadingVistoriaData, setLoadingVistoriaData] = useState(true);
   const [error, setError] = useState(null);
