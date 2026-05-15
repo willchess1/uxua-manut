@@ -7,7 +7,7 @@ const AuthContext = createContext({});
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true); // Apenas para o carregamento inicial da sessão
+  const [loading, setLoading] = useState(true);
 
   async function fetchProfile(userId) {
     const { data, error } = await supabase
@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
         }
       } finally {
         if (isMounted) {
-          setLoading(false); // Garante que o loading é sempre definido como false após a sessão inicial
+          setLoading(false);
         }
       }
     }
@@ -74,8 +74,6 @@ export function AuthProvider({ children }) {
         } else {
           setProfile(null);
         }
-        // Não definimos setLoading(false) aqui, pois o loading principal já foi definido por getInitialSession
-        // Este handler apenas atualiza user/profile.
       }
     });
 
@@ -85,20 +83,34 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // A função login agora apenas chama o Supabase e retorna o erro
   async function login(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   }
 
-  // A função logout agora apenas chama o Supabase
   async function logout() {
     await supabase.auth.signOut();
   }
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, login, logout }}>
-      {children}
+      {!loading ? children : (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          background: '#1e1e3a',
+          color: 'white',
+          fontSize: '18px',
+          fontFamily: 'system-ui, sans-serif',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <span style={{ fontSize: '40px' }}>⏳</span>
+          <span>A carregar sessão...</span>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }
