@@ -8,54 +8,71 @@ import VistoriasListPage from './pages/Vistorias/VistoriasListPage';
 import VistoriaPage from './pages/Vistorias/VistoriaPage';
 import CasasPage from './pages/CasasPage';
 
+// ✅ Estes componentes estão DENTRO do AuthProvider via AppRoutes
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
-  // ✅ Se não tem user, vai para login!
+  const { user, loading } = useAuth();
+  if (loading) return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      background: '#1e1e3a',
+      color: 'white',
+      flexDirection: 'column',
+      gap: '12px',
+      fontFamily: 'system-ui, sans-serif'
+    }}>
+      <span style={{ fontSize: '40px' }}>⏳</span>
+      <span>A carregar...</span>
+    </div>
+  );
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
 function PublicRoute({ children }) {
-  const { user } = useAuth();
-  // ✅ Se já tem user, vai direto para dashboard!
+  const { user, loading } = useAuth();
+  if (loading) return null;
   if (user) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
+// ✅ AppRoutes é renderizado DENTRO do AuthProvider
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={
+        <PublicRoute><LoginPage /></PublicRoute>
+      } />
+      <Route path="/dashboard" element={
+        <ProtectedRoute><DashboardPage /></ProtectedRoute>
+      } />
+      <Route path="/casas" element={
+        <ProtectedRoute><CasasPage /></ProtectedRoute>
+      } />
+      <Route path="/vistorias" element={
+        <ProtectedRoute><VistoriasListPage /></ProtectedRoute>
+      } />
+      <Route path="/vistorias/nova" element={
+        <ProtectedRoute><VistoriaPage /></ProtectedRoute>
+      } />
+      <Route path="/vistorias/:id" element={
+        <ProtectedRoute><VistoriaPage /></ProtectedRoute>
+      } />
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+}
+
+// ✅ Estrutura correta:
+// Router → AuthProvider → AppRoutes → ProtectedRoute/PublicRoute
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          {/* ✅ Login só abre se NÃO estiver autenticado */}
-          <Route path="/login" element={
-            <PublicRoute><LoginPage /></PublicRoute>
-          } />
-
-          <Route path="/dashboard" element={
-            <ProtectedRoute><DashboardPage /></ProtectedRoute>
-          } />
-
-          <Route path="/casas" element={
-            <ProtectedRoute><CasasPage /></ProtectedRoute>
-          } />
-
-          <Route path="/vistorias" element={
-            <ProtectedRoute><VistoriasListPage /></ProtectedRoute>
-          } />
-
-          <Route path="/vistorias/nova" element={
-            <ProtectedRoute><VistoriaPage /></ProtectedRoute>
-          } />
-
-          <Route path="/vistorias/:id" element={
-            <ProtectedRoute><VistoriaPage /></ProtectedRoute>
-          } />
-
-          {/* ✅ Por defeito vai para login, não dashboard! */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
+        <AppRoutes />
       </AuthProvider>
     </Router>
   );
