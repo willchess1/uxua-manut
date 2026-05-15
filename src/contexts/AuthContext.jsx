@@ -10,76 +10,44 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   async function fetchProfile(userId) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Erro ao buscar perfil:', error);
-      setProfile(null);
-      return null;
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (error) { setProfile(null); return; }
       setProfile(data ?? null);
-      return data ?? null;
+    } catch {
+      setProfile(null);
     }
   }
 
   useEffect(() => {
-    let isMounted = true;
+    // ✅ Timeout de segurança - 5 segundos max
+    const timeout = setTimeout(() => {
+      console.warn('⚠️ Auth timeout!');
+      setLoading(false);
+    }, 5000);
 
-    async function getInitialSession() {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error("Erro ao obter sessão inicial:", error);
-          if (isMounted) {
-            setUser(null);
-            setProfile(null);
-          }
-        } else {
-          if (isMounted) {
-            setUser(session?.user ?? null);
-          }
-          if (session?.user) {
-            await fetchProfile(session.user.id);
-          } else {
-            if (isMounted) {
-              setProfile(null);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Erro inesperado no getInitialSession:", err);
-        if (isMounted) {
-          setUser(null);
-          setProfile(null);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    getInitialSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (isMounted) {
+    // ✅ Listener do estado de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔑 Auth event:', event);
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);
         }
+        clearTimeout(timeout);
+        setLoading(false);
       }
-    });
+    );
 
     return () => {
-      isMounted = false;
       subscription.unsubscribe();
+      clearTimeout(timeout);
     };
   }, []);
 
@@ -94,23 +62,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, login, logout }}>
-      {!loading ? children : (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          background: '#1e1e3a',
-          color: 'white',
-          fontSize: '18px',
-          fontFamily: 'system-ui, sans-serif',
-          flexDirection: 'column',
-          gap: '12px'
-        }}>
-          <span style={{ fontSize: '40px' }}>⏳</span>
-          <span>A carregar sessão...</span>
-        </div>
-      )}
+      {children}
     </AuthContext.Provider>
   );
 }
